@@ -1,0 +1,37 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Backend build outputs and runtime state
+backend/*.exe
+backend/*.exe~
+backend/player_state.json
+
+# Frontend build outputs
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+frontend/.vercel/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# Frontend local config
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Firmware / PlatformIO outputs
+firmware/.pio/
+firmware/.vscode/
+firmware/.cache/
+firmware/compile_commands.json
