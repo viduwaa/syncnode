@@ -44,6 +44,8 @@ export default function PlayerSync() {
               duration: data.payload.duration,
               isPlaying: data.payload.isPlaying,
             })
+          } else if (data.type === 'DEVICES_UPDATE') {
+            usePlayerStore.getState().setDevices(data.payload)
           } else if (!data.type) {
              // Fallback for full state direct broadcast without type wrapper
              updateState(data)

@@ -215,24 +215,6 @@ void setup() {
     // Initialize OLED Display
     display.begin();
 
-    // Factory Reset WiFi Trigger: Hold Play/Pause button on power up
-    pinMode(BTN_PLAY_PAUSE, INPUT_PULLUP);
-    delay(100); // Wait for physical lines to stabilize
-    if (digitalRead(BTN_PLAY_PAUSE) == LOW) {
-        Serial.println("[System] Play/Pause button held during boot! Factory resetting WiFi...");
-        display.showError("Resetting WiFi...\nRelease Button");
-        
-        WiFiManager wm;
-        wm.resetSettings();
-        
-        // Keep waiting until the button is released to prevent loop
-        while (digitalRead(BTN_PLAY_PAUSE) == LOW) {
-            delay(50);
-        }
-        Serial.println("[System] WiFi settings cleared. Restarting board...");
-        ESP.restart();
-    }
-
     // Provision Wi-Fi
     if (!setupWiFi()) {
         display.showError("WiFi Setup Failed. Restarting...");
@@ -287,7 +269,7 @@ void controlTask(void* parameter) {
     wsClient->begin(backendHost, BACKEND_PORT, deviceMAC, localIP);
 
     // Setup Hardware Inputs
-    input = new InputManager(onButtonPress, onVolumeKnobChange, onVolumeKnobSettled);
+    input = new InputManager(onButtonPress, onVolumeKnobChange);
     input->begin();
 
     for (;;) {
@@ -383,8 +365,14 @@ void audioTask(void* parameter) {
         }
 
         // 2. Perform audio stream data copy tick
+        static unsigned long lastDataTime = 0;
         if (audio.isPlaying()) {
             size_t copied = audio.copyTick();
+            unsigned long now = millis();
+            
+            if (copied > 0) {
+                lastDataTime = now;
+            }
             
             // Detect if stream ended
             if (copied == 0) {
@@ -392,12 +380,17 @@ void audioTask(void* parameter) {
                     Serial.println("[Core 1] Audio stream closed by server, track ended.");
                     audio.stopStream();
                     trackFinished = true; // Signal Core 0 to send the WS report
+                } else if (now - lastDataTime > 10000) {
+                    Serial.println("[Core 1] ERROR: Audio stream stalled for 10s. Skipping track.");
+                    audio.stopStream();
+                    trackFinished = true;
                 } else {
                     // Yield to prevent watchdog starvation while network buffers are loading
                     vTaskDelay(10 / portTICK_PERIOD_MS);
                 }
             }
         } else {
+            lastDataTime = millis(); // Reset watchdog while idle
             // Yield on idle to prevent watchdog trigger
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }

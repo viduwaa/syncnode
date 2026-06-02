@@ -89,7 +89,7 @@ export default function MiniPlayer() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             onClick={() => setIsExpanded(true)}
-            className="fixed bottom-24 lg:bottom-6 left-4 right-4 lg:left-80 lg:right-6 h-20 bg-zinc-950/95 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden z-[50] shadow-2xl cursor-pointer group"
+            className="fixed bottom-24 lg:bottom-6 left-4 right-4 lg:left-80 lg:right-6 h-20 bg-zinc-950 border border-white/10 rounded-3xl overflow-hidden z-[50] shadow-2xl cursor-pointer group"
           >
             <div className="absolute inset-x-0 bottom-0 h-[2px] bg-white/5">
               <motion.div 
@@ -201,7 +201,7 @@ export default function MiniPlayer() {
                       <motion.h2 
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        className="text-2xl sm:text-4xl lg:text-5xl font-black italic tracking-tighter uppercase leading-tight mb-2 text-white line-clamp-2"
+                        className="text-xl sm:text-3xl lg:text-4xl font-black italic tracking-tighter uppercase leading-tight mb-2 text-white line-clamp-2"
                       >
                         {currentTrack.title}
                       </motion.h2>

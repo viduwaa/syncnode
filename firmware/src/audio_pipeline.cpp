@@ -9,12 +9,9 @@ AudioPipeline::AudioPipeline()
     , _trebleDb(0)
     , _playbackStartTime(0)
     , _pausedPositionSec(0)
-    , _i2s()
-    , _equalizer(_i2s)
-    , _volumeStream(_equalizer)
-    , _mp3Decoder()
-    , _decodedStream(&_volumeStream, &_mp3Decoder)
-    , _urlStream()
+    , _equalizer(_i2s)                 // Equalizer writes to I2S
+    , _volumeStream(_equalizer)         // VolumeStream writes to Equalizer
+    , _decodedStream(&_volumeStream, &_mp3Decoder) // MP3Decoder writes to VolumeStream
     , _copier(nullptr) {}
 
 void AudioPipeline::begin() {
@@ -64,8 +61,10 @@ void AudioPipeline::begin() {
     _decodedStream.begin();
 
     // 5. Configure URL Client Stream
-    _urlStream.setClient(*(new WiFiClient()));
-
+    WiFiClient* client = new WiFiClient();
+    client->setTimeout(10000); // 10 seconds read timeout
+    _urlStream.setClient(*client);
+ 
     // 6. Setup Copier linking input URLStream to output MP3 Decoder
     _copier = new StreamCopy(_decodedStream, _urlStream);
     
@@ -154,7 +153,7 @@ void AudioPipeline::setEQ(int bassDb, int midDb, int trebleDb) {
 }
 
 size_t AudioPipeline::copyTick() {
-    if (_isPlaying && _urlStream.available() > 0 && _copier != nullptr) {
+    if (_isPlaying && _copier != nullptr) {
         return _copier->copy();
     }
     return 0;

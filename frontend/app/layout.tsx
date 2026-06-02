@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 import AuthProvider from "@/components/providers/AuthProvider";
 import PlayerSync from "@/components/player/PlayerSync";
 import Sidebar from "@/components/layout/Sidebar";
+import DeviceStatusWidget from "@/components/layout/DeviceStatusWidget";
 
 export default function RootLayout({
   children,
@@ -48,6 +49,10 @@ export default function RootLayout({
             
             <main className="flex-1 w-full lg:pl-72 min-h-screen pb-32 lg:pb-0">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+                {/* Global Top Bar */}
+                <div className="flex justify-end items-center mb-6">
+                  <DeviceStatusWidget />
+                </div>
                 {children}
               </div>
             </main>

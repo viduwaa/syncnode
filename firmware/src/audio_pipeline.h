@@ -40,12 +40,12 @@ private:
     unsigned long _pausedPositionSec;
 
     // Pipeline instances
+    URLStream _urlStream;
     I2SStream _i2s;
-    Equalizer3Bands _equalizer;        // EQ wraps I2S
-    VolumeStream _volumeStream;        // VolumeStream wraps EQ
+    VolumeStream _volumeStream;
+    Equalizer3Bands _equalizer; // EQ wraps I2S
     MP3DecoderHelix _mp3Decoder;
     EncodedAudioStream _decodedStream; // MP3 decoder writes to volumeStream
-    URLStream _urlStream;
     StreamCopy* _copier;
 };
 

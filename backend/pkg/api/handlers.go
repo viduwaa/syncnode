@@ -185,6 +185,19 @@ func (h *APIHandler) HandleWS(w http.ResponseWriter, r *http.Request) {
 		"payload": state,
 	})
 
+	// Send initial devices list immediately
+	h.devicesMu.RLock()
+	devicesCopy := make(map[string]*DeviceStatus)
+	for k, v := range h.devices {
+		devicesCopy[k] = v
+	}
+	h.devicesMu.RUnlock()
+
+	conn.WriteJSON(map[string]interface{}{
+		"type":    "DEVICES_UPDATE",
+		"payload": devicesCopy,
+	})
+
 	// Keep alive / cleanup read loop
 	go func() {
 		defer func() {
@@ -228,6 +241,7 @@ func (h *APIHandler) HandleWSESP32(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[WS ESP32] ESP32 device connected via WS: MAC=%s, IP=%s", mac, ip)
 	h.registerOrUpdateDevice(mac, ip, "SyncNode-ESP32", "2.0.0")
+	h.BroadcastDevices()
 
 	// Read loop to receive local reports or inputs from hardware
 	go func() {
@@ -236,6 +250,7 @@ func (h *APIHandler) HandleWSESP32(w http.ResponseWriter, r *http.Request) {
 			if h.espClients[mac] == conn {
 				delete(h.espClients, mac)
 				h.setDeviceConnected(mac, false)
+				h.BroadcastDevices()
 			}
 			h.espClientsMu.Unlock()
 			conn.Close()
@@ -307,11 +322,7 @@ func (h *APIHandler) HandleHardwareAction(action string) {
 	case "skip":
 		h.TriggerAutoSkip()
 	case "previous":
-		state := h.StateMgr.GetState()
-		if state.CurrentTrack != nil {
-			h.StateMgr.Update(func(s *player.PlayerState) { s.Progress = 0 })
-			h.PushCommandToESP32("play", *state.CurrentTrack)
-		}
+		go h.TriggerPrevious()
 	}
 }
 
@@ -452,11 +463,7 @@ func (h *APIHandler) HandleControl(w http.ResponseWriter, r *http.Request) {
 		go h.TriggerAutoSkip()
 
 	case "previous":
-		state := h.StateMgr.GetState()
-		if state.CurrentTrack != nil {
-			h.StateMgr.Update(func(s *player.PlayerState) { s.Progress = 0 })
-			h.PushCommandToESP32("play", *state.CurrentTrack)
-		}
+		go h.TriggerPrevious()
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -549,6 +556,59 @@ func (h *APIHandler) TriggerAutoSkip() {
 	}
 }
 
+// TriggerPrevious handles logic to play the previous track in context or restart current track
+func (h *APIHandler) TriggerPrevious() {
+	var prevTrack *player.Track
+
+	h.StateMgr.Update(func(s *player.PlayerState) {
+		// If progress is greater than 3 seconds, just restart the current song
+		if s.Progress > 3.0 {
+			s.Progress = 0
+			if s.CurrentTrack != nil {
+				prevTrack = s.CurrentTrack
+			}
+			return
+		}
+
+		// Otherwise, try to go to the previous track in the playlist
+		if s.ContextType == "playlist" && len(s.ContextTracks) > 0 && s.ContextIndex > 0 {
+			s.ContextIndex--
+			prevTrack = &s.ContextTracks[s.ContextIndex]
+			s.CurrentTrack = prevTrack
+			s.Progress = 0
+			s.IsPlaying = true
+			s.IsLoading = true
+		} else if s.CurrentTrack != nil {
+			// Fallback: just restart the song if we can't go back
+			s.Progress = 0
+			prevTrack = s.CurrentTrack
+		}
+	})
+
+	if prevTrack != nil {
+		log.Printf("[Player] Previous track selected: %s by %s", prevTrack.Title, prevTrack.Artist)
+		
+		go func(track player.Track) {
+			h.PushCommandToESP32("play", track)
+			
+			duration, err := youtube.GetVideoDurationDirect(track.ID)
+			if err != nil && h.YouTubeKey != "" {
+				duration, _ = youtube.GetVideoDuration(track.ID)
+			}
+
+			h.StateMgr.Update(func(s *player.PlayerState) {
+				s.IsLoading = false
+				if s.CurrentTrack != nil && s.CurrentTrack.ID == track.ID {
+					if duration > 0 {
+						s.Duration = duration
+						s.CurrentTrack.Duration = duration
+					}
+				}
+			})
+		}(*prevTrack)
+	}
+}
+
 // REST Proxy Stream Endpoint
 func (h *APIHandler) HandleStreamProxy(w http.ResponseWriter, r *http.Request) {
 	videoID := strings.TrimPrefix(r.URL.Path, "/api/stream/")
@@ -581,6 +641,7 @@ func (h *APIHandler) HandleStreamProxy(w http.ResponseWriter, r *http.Request) {
 		"-reconnect_delay_max", "5",
 		"-timeout", "30000000",
 		"-rw_timeout", "30000000",
+		"-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 		"-probesize", "32768",          // Small probe size for low latency
 		"-analyzeduration", "0",        // Skip analyze duration to start instantly
 		"-fflags", "nobuffer",          // Disable internal buffering
@@ -790,15 +851,51 @@ func (h *APIHandler) StartDeviceTimeoutMonitor() {
 	go func() {
 		for range ticker.C {
 			h.devicesMu.Lock()
+			hasChanges := false
 			for mac, dev := range h.devices {
 				if dev.Connected && time.Since(dev.LastSeen) > 30*time.Second {
 					dev.Connected = false
+					hasChanges = true
 					log.Printf("[Device Monitor] Device %s timed out, status set offline", mac)
 				}
 			}
 			h.devicesMu.Unlock()
+			if hasChanges {
+				h.BroadcastDevices()
+			}
 		}
 	}()
+}
+
+// BroadcastDevices sends the list of all registered hardware devices to all web clients
+func (h *APIHandler) BroadcastDevices() {
+	h.devicesMu.RLock()
+	devicesCopy := make(map[string]*DeviceStatus)
+	for k, v := range h.devices {
+		devicesCopy[k] = v
+	}
+	h.devicesMu.RUnlock()
+
+	event := map[string]interface{}{
+		"type":    "DEVICES_UPDATE",
+		"payload": devicesCopy,
+	}
+
+	data, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("[WS Client] Error marshaling devices list: %v", err)
+		return
+	}
+
+	h.clientsMu.Lock()
+	defer h.clientsMu.Unlock()
+	for client := range h.clients {
+		err := client.WriteMessage(websocket.TextMessage, data)
+		if err != nil {
+			client.Close()
+			delete(h.clients, client)
+		}
+	}
 }
 
 // Utility CORS middleware

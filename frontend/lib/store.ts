@@ -18,6 +18,16 @@ export interface QueueItem {
   addedAt: number
 }
 
+export interface DeviceStatus {
+  mac: string
+  ip: string
+  name: string
+  version: string
+  lastSeen: string
+  connected: boolean
+  rssi: number
+}
+
 export interface PlayerState {
   currentTrack: Track | null
   isPlaying: boolean
@@ -32,6 +42,7 @@ export interface PlayerState {
     treble: number
   }
   activeDeviceId: string | null
+  devices: Record<string, DeviceStatus>
   
   // Actions
   setTrack: (track: Track | null) => void
@@ -43,6 +54,7 @@ export interface PlayerState {
   removeFromQueue: (id: string) => void
   setEQ: (band: 'bass' | 'mid' | 'treble', value: number) => void
   setActiveDevice: (id: string | null) => void
+  setDevices: (devices: Record<string, DeviceStatus>) => void
   updateState: (partial: Partial<PlayerState>) => void
   isExpanded: boolean
   setIsExpanded: (expanded: boolean) => void
@@ -58,6 +70,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   queue: [],
   eq: { bass: 0, mid: 0, treble: 0 },
   activeDeviceId: null,
+  devices: {},
 
   setTrack: (track) => set({ currentTrack: track, progress: 0 }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
@@ -74,6 +87,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
     eq: { ...state.eq, [band]: value }
   })),
   setActiveDevice: (id) => set({ activeDeviceId: id }),
+  setDevices: (devices) => set({ devices }),
   updateState: (partial) => set((state) => ({ ...state, ...partial })),
   isExpanded: false,
   setIsExpanded: (expanded) => set({ isExpanded: expanded }),
