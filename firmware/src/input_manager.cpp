@@ -1,9 +1,10 @@
 #include "input_manager.h"
 #include "config.h"
 
-InputManager::InputManager(ButtonCallback btnCallback, VolumeCallback volCallback)
+InputManager::InputManager(ButtonCallback btnCallback, VolumeCallback volCallback, VolumeCallback settleCallback)
     : _btnCallback(btnCallback)
     , _volCallback(volCallback)
+    , _settleCallback(settleCallback)
     , _lastPlayPausePress(0)
     , _lastNextPress(0)
     , _lastPrevPress(0)
@@ -98,8 +99,8 @@ void InputManager::update() {
         _stableVolume = _lastVolume;
         Serial.printf("[Input] Volume knob settled at %d%%, triggering sync report\n", _stableVolume);
         
-        // In the WS overhaul, main.cpp will catch this stable volume change
-        // and send a WebSocket event. We trigger the callback with negative value
-        // or a status update. The callback handles sending WS.
+        if (_settleCallback) {
+            _settleCallback(_stableVolume);
+        }
     }
 }

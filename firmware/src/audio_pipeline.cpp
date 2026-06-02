@@ -9,9 +9,12 @@ AudioPipeline::AudioPipeline()
     , _trebleDb(0)
     , _playbackStartTime(0)
     , _pausedPositionSec(0)
-    , _equalizer(_i2s)                 // Equalizer writes to I2S
-    , _volumeStream(_equalizer)         // VolumeStream writes to Equalizer
-    , _decodedStream(&_volumeStream, &_mp3Decoder) // MP3Decoder writes to VolumeStream
+    , _i2s()
+    , _equalizer(_i2s)
+    , _volumeStream(_equalizer)
+    , _mp3Decoder()
+    , _decodedStream(&_volumeStream, &_mp3Decoder)
+    , _urlStream()
     , _copier(nullptr) {}
 
 void AudioPipeline::begin() {

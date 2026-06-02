@@ -8,7 +8,7 @@ public:
     typedef void (*ButtonCallback)(const char* action);
     typedef void (*VolumeCallback)(int volume);
 
-    InputManager(ButtonCallback btnCallback, VolumeCallback volCallback);
+    InputManager(ButtonCallback btnCallback, VolumeCallback volCallback, VolumeCallback settleCallback = nullptr);
     
     void begin();
     void update();
@@ -16,6 +16,7 @@ public:
 private:
     ButtonCallback _btnCallback;
     VolumeCallback _volCallback;
+    VolumeCallback _settleCallback;
 
     // Debounce tracking
     unsigned long _lastPlayPausePress;

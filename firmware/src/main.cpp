@@ -215,6 +215,24 @@ void setup() {
     // Initialize OLED Display
     display.begin();
 
+    // Factory Reset WiFi Trigger: Hold Play/Pause button on power up
+    pinMode(BTN_PLAY_PAUSE, INPUT_PULLUP);
+    delay(100); // Wait for physical lines to stabilize
+    if (digitalRead(BTN_PLAY_PAUSE) == LOW) {
+        Serial.println("[System] Play/Pause button held during boot! Factory resetting WiFi...");
+        display.showError("Resetting WiFi...\nRelease Button");
+        
+        WiFiManager wm;
+        wm.resetSettings();
+        
+        // Keep waiting until the button is released to prevent loop
+        while (digitalRead(BTN_PLAY_PAUSE) == LOW) {
+            delay(50);
+        }
+        Serial.println("[System] WiFi settings cleared. Restarting board...");
+        ESP.restart();
+    }
+
     // Provision Wi-Fi
     if (!setupWiFi()) {
         display.showError("WiFi Setup Failed. Restarting...");
@@ -269,7 +287,7 @@ void controlTask(void* parameter) {
     wsClient->begin(backendHost, BACKEND_PORT, deviceMAC, localIP);
 
     // Setup Hardware Inputs
-    input = new InputManager(onButtonPress, onVolumeKnobChange);
+    input = new InputManager(onButtonPress, onVolumeKnobChange, onVolumeKnobSettled);
     input->begin();
 
     for (;;) {
