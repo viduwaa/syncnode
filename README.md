@@ -19,38 +19,41 @@ Whether you want to stream high-quality music from YouTube directly to an I2S DA
 
 ## 📂 Project Structure
 
-The project has been overhauled and organized inside the `/rehaul` directory:
-
 ```
-SyncNode/
-├── rehaul/
-│   ├── firmware/             # ESP32 C++ PlatformIO Firmware Project
-│   │   ├── include/config.h  # Central pinout declarations & timing thresholds
-│   │   └── src/
-│   │       ├── main.cpp      # Coordinator looping WebSocket client & audio pipeline
-│   │       ├── audio_pipeline.h/cpp # Helix MP3 decoder, Volume, Equalizer & I2S streams
-│   │       ├── websocket_client.h/cpp # Persistent WebSocket client & JSON handlers
-│   │       ├── display_manager.h/cpp  # OLED SSD1306 drawing layouts & status screens
-│   │       └── input_manager.h/cpp    # Non-blocking button handler & EMA volume filter
-│   │
-│   ├── backend/              # Go REST & WebSocket Transcoding Server
-│   │   ├── cmd/server/       # Entry point main.go launching API routes & tracker loop
-│   │   └── pkg/
-│   │       ├── api/          # handlers.go (WS connections, ffmpeg stream) & router.go
-│   │       ├── player/       # state.go (Thread-safe PlayerState & local caching)
-│   │       └── youtube/      # resolver.go (Native streaming resolver & YouTube search)
-│   │
-│   └── frontend/             # Next.js 16 (Turbopack) Web Dashboard
-│       ├── app/              # Navigation views: /, /search, /library, /profile
-│       ├── components/       # UI layout, MiniPlayer, and DeviceStatusWidget
-│       └── lib/              # store.ts (Zustand store) and api.ts (REST client)
+syncnode/
+├── firmware/             # ESP32 C++ PlatformIO Firmware Project
+│   ├── include/config.h  # Central pinout declarations & timing thresholds
+│   └── src/
+│       ├── main.cpp      # Coordinator looping WebSocket client & audio pipeline
+│       ├── audio_pipeline.h/cpp # Helix MP3 decoder, Volume, Equalizer & I2S streams
+│       ├── websocket_client.h/cpp # Persistent WebSocket client & JSON handlers
+│       ├── display_manager.h/cpp  # OLED SSD1306 drawing layouts & status screens
+│       └── input_manager.h/cpp    # Non-blocking button handler & EMA volume filter
+│
+├── backend/              # Go REST & WebSocket Transcoding Server
+│   ├── cmd/
+│   │   ├── server/       # Entry point main.go launching API routes & tracker loop
+│   │   └── ip/           # Utility main.go for local IP address detection
+│   └── pkg/
+│       ├── api/          # handlers.go (WS connections, ffmpeg stream) & router.go
+│       ├── player/       # state.go (Thread-safe PlayerState & local caching)
+│       └── youtube/      # resolver.go (Native streaming resolver & YouTube search)
+│
+└── frontend/             # Next.js 16 Web Dashboard
+    ├── app/              # Navigation views: /, /search, /library, /profile
+    ├── components/
+    │   ├── layout/       # Sidebar, BottomNav, and DeviceStatusWidget
+    │   ├── player/       # MiniPlayer and PlayerSync components
+    │   └── providers/    # AuthProvider and other context wrappers
+    ├── lib/              # store.ts (Zustand store) and api.ts (REST client)
+    └── types/            # Shared TypeScript type definitions
 ```
 
 ---
 
 ## 🔌 Hardware Wiring Guide
 
-To build the physical SyncNode receiver, connect your ESP32 to a **PCM5102A DAC** and an **SSD1306 OLED screen** (I2C) using the pinout mapping defined in [config.h](file:///g:/Uni%20Stuff/Y3S1/IOT/SyncNode/rehaul/firmware/include/config.h):
+To build the physical SyncNode receiver, connect your ESP32 to a **PCM5102A DAC** and an **SSD1306 OLED screen** (I2C) using the pinout mapping defined in [config.h](firmware/include/config.h):
 
 ### 1. I2S DAC (PCM5102A) Wiring
 | PCM5102A Pin | ESP32 GPIO Pin | Description |
@@ -90,7 +93,7 @@ The Go backend requires `ffmpeg` to be installed and available in your system's 
 ### Step 1: Run the Go Backend
 1.  Navigate to the backend directory:
     ```bash
-    cd rehaul/backend
+    cd backend
     ```
 2.  Copy the example environment settings and populate your settings (add your `YOUTUBE_API_KEY` if you want search queries enabled):
     ```bash
@@ -108,7 +111,7 @@ The Go backend requires `ffmpeg` to be installed and available in your system's 
 ### Step 2: Launch the Web Dashboard
 1.  Navigate to the frontend directory:
     ```bash
-    cd rehaul/frontend
+    cd frontend
     ```
 2.  Install the packages:
     ```bash
@@ -123,8 +126,8 @@ The Go backend requires `ffmpeg` to be installed and available in your system's 
 ---
 
 ### Step 3: Flash the ESP32 Firmware
-1.  Open the directory `rehaul/firmware` using VS Code with the **PlatformIO** extension installed.
-2.  Open [config.h](file:///g:/Uni%20Stuff/Y3S1/IOT/SyncNode/rehaul/firmware/include/config.h) and verify that the pins align with your hardware.
+1.  Open the directory `firmware` using VS Code with the **PlatformIO** extension installed.
+2.  Open [config.h](firmware/include/config.h) and verify that the pins align with your hardware.
 3.  Connect the ESP32 to your PC via USB and click **Upload** in the PlatformIO toolbar.
 4.  Once flashed:
     *   The OLED screen will boot up and display a `WiFi Setup AP` prompt.
